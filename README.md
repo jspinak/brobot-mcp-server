@@ -90,13 +90,46 @@ Expected response:
 {"status": "ok"}
 ```
 
+## CLI Integration
+
+The server can operate in two modes:
+
+### 1. Mock Mode (Default)
+Uses hardcoded mock data for testing and development.
+
+### 2. CLI Mode
+Integrates with the Brobot Java CLI for real automation control.
+
+#### Setting up CLI Mode:
+
+1. Build the Brobot CLI:
+```bash
+cd brobot-cli
+gradle shadowJar  # or ./gradlew shadowJar
+```
+
+2. Configure the server:
+Create a `.env` file:
+```env
+USE_MOCK_DATA=false
+BROBOT_CLI_JAR=brobot-cli/build/libs/brobot-cli.jar
+```
+
+3. Start the server:
+```bash
+python -m mcp_server.main
+```
+
+The server will automatically detect and use the CLI when available.
+
 ## API Endpoints
 
-### Core Endpoints (Coming Soon)
+### Core Endpoints
 
 - `GET /api/v1/state_structure` - Get the application's state model
 - `GET /api/v1/observation` - Get current observation with screenshot
 - `POST /api/v1/execute` - Execute an automation action
+- `GET /api/v1/health` - Extended health check with CLI status
 
 ## Development
 

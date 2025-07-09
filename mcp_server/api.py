@@ -3,7 +3,8 @@
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
 import base64
-from typing import Dict
+import logging
+from typing import Dict, Any
 
 from .models import (
     StateStructure, State, StateTransition,
@@ -11,6 +12,10 @@ from .models import (
     ActionRequest, ActionResult,
     HealthStatus
 )
+from .config import get_settings
+from .brobot_bridge import get_bridge, BrobotCLIError
+
+logger = logging.getLogger(__name__)
 
 # Create API router
 router = APIRouter(prefix="/api/v1", tags=["MCP"])
@@ -197,6 +202,47 @@ async def get_state_structure() -> StateStructure:
     This endpoint returns the state graph including all states,
     their transitions, and associated image patterns.
     """
+    settings = get_settings()
+    
+    # Use CLI if configured, otherwise fall back to mock data
+    if settings.is_cli_configured:
+        try:
+            bridge = get_bridge()
+            cli_response = bridge.get_state_structure()
+            
+            # Convert CLI response to our Pydantic model
+            return StateStructure(
+                states=[
+                    State(
+                        name=s["name"],
+                        description=s.get("description", ""),
+                        images=s.get("images", []),
+                        transitions=[
+                            StateTransition(
+                                from_state=t["fromState"],
+                                to_state=t["toState"],
+                                action=t["action"],
+                                probability=t.get("probability", 0.0)
+                            )
+                            for t in s.get("transitions", [])
+                        ],
+                        is_initial=s.get("isInitial", False),
+                        is_final=s.get("isFinal", False)
+                    )
+                    for s in cli_response.get("states", [])
+                ],
+                current_state=cli_response.get("currentState"),
+                metadata=cli_response.get("metadata", {})
+            )
+        except BrobotCLIError as e:
+            logger.error(f"CLI error getting state structure: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            logger.error(f"Unexpected error getting state structure: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+    
+    # Fall back to mock data
+    logger.info("Using mock state structure data")
     return get_mock_state_structure()
 
 
@@ -211,6 +257,39 @@ async def get_observation() -> Observation:
     - Screen dimensions
     - Timing metadata
     """
+    settings = get_settings()
+    
+    # Use CLI if configured, otherwise fall back to mock data
+    if settings.is_cli_configured:
+        try:
+            bridge = get_bridge()
+            cli_response = bridge.get_observation()
+            
+            # Convert CLI response to our Pydantic model
+            return Observation(
+                timestamp=datetime.fromisoformat(cli_response["timestamp"]),
+                active_states=[
+                    ActiveState(
+                        name=s["name"],
+                        confidence=s["confidence"],
+                        matched_patterns=s.get("matchedPatterns", [])
+                    )
+                    for s in cli_response.get("activeStates", [])
+                ],
+                screenshot=cli_response.get("screenshot"),
+                screen_width=cli_response["screenWidth"],
+                screen_height=cli_response["screenHeight"],
+                metadata=cli_response.get("metadata", {})
+            )
+        except BrobotCLIError as e:
+            logger.error(f"CLI error getting observation: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            logger.error(f"Unexpected error getting observation: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+    
+    # Fall back to mock data
+    logger.info("Using mock observation data")
     return get_mock_observation()
 
 
@@ -227,15 +306,76 @@ async def execute_action(request: ActionRequest) -> ActionResult:
     
     The action will be executed by the Brobot automation engine.
     """
+    settings = get_settings()
+    
+    # Use CLI if configured, otherwise fall back to mock data
+    if settings.is_cli_configured:
+        try:
+            bridge = get_bridge()
+            
+            # Convert request to dict for CLI
+            cli_request = {
+                "actionType": request.action_type,
+                "parameters": request.parameters,
+                "targetState": request.target_state,
+                "timeout": request.timeout
+            }
+            
+            cli_response = bridge.execute_action(cli_request)
+            
+            # Convert CLI response to our Pydantic model
+            return ActionResult(
+                success=cli_response["success"],
+                action_type=cli_response["actionType"],
+                duration=cli_response["duration"],
+                result_state=cli_response.get("resultState"),
+                error=cli_response.get("error"),
+                metadata=cli_response.get("metadata", {})
+            )
+        except BrobotCLIError as e:
+            logger.error(f"CLI error executing action: {e}")
+            # Return error result instead of raising exception
+            return ActionResult(
+                success=False,
+                action_type=request.action_type,
+                duration=0.0,
+                result_state=None,
+                error=str(e),
+                metadata={}
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error executing action: {e}")
+            return ActionResult(
+                success=False,
+                action_type=request.action_type,
+                duration=0.0,
+                result_state=None,
+                error="Internal server error",
+                metadata={}
+            )
+    
+    # Fall back to mock data
+    logger.info("Using mock action execution")
     return get_mock_action_result(request)
 
 
 @router.get("/health", response_model=HealthStatus, summary="Extended health check")
 async def health_check() -> HealthStatus:
     """Get detailed health status including Brobot connection status."""
+    settings = get_settings()
+    brobot_connected = False
+    
+    # Check if CLI is available
+    if settings.brobot_cli_jar and not settings.use_mock_data:
+        try:
+            bridge = get_bridge()
+            brobot_connected = bridge.is_available()
+        except:
+            brobot_connected = False
+    
     return HealthStatus(
         status="ok",
         version="0.1.0",
-        brobot_connected=False,  # Will be True when Brobot CLI is integrated
+        brobot_connected=brobot_connected,
         timestamp=datetime.now()
     )

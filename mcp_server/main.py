@@ -3,8 +3,15 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import uvicorn
+import logging
 
 from .api import router as api_router
+from .config import get_settings
+from .brobot_bridge import initialize_bridge
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Create FastAPI instance
 app = FastAPI(
@@ -17,6 +24,25 @@ app = FastAPI(
 
 # Include API routes
 app.include_router(api_router)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup."""
+    settings = get_settings()
+    
+    if settings.brobot_cli_jar and not settings.use_mock_data:
+        try:
+            initialize_bridge(
+                jar_path=settings.brobot_cli_jar,
+                java_executable=settings.java_executable
+            )
+            logger.info("Brobot bridge initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Brobot bridge: {e}")
+            logger.info("Server will continue with mock data")
+    else:
+        logger.info("Running in mock data mode (CLI not configured)")
 
 
 @app.get("/health", response_model=dict)
@@ -44,12 +70,14 @@ async def root():
 
 def main():
     """Run the FastAPI server."""
+    settings = get_settings()
+    
     uvicorn.run(
         "mcp_server.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info",
+        host=settings.host,
+        port=settings.port,
+        reload=settings.reload,
+        log_level=settings.log_level,
     )
 
 

@@ -4,6 +4,8 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import uvicorn
 
+from .api import router as api_router
+
 # Create FastAPI instance
 app = FastAPI(
     title="Brobot MCP Server",
@@ -12,6 +14,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Include API routes
+app.include_router(api_router)
 
 
 @app.get("/health", response_model=dict)
@@ -29,6 +34,11 @@ async def root():
         "description": "Model Context Protocol server for Brobot automation",
         "docs": "/docs",
         "health": "/health",
+        "api": {
+            "state_structure": "/api/v1/state_structure",
+            "observation": "/api/v1/observation",
+            "execute": "/api/v1/execute"
+        }
     }
 
 

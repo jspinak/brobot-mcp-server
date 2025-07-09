@@ -17,7 +17,7 @@ dependencies {
     implementation 'com.github.jspinak:brobot:1.0.0'
     
     // JSON processing
-    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'com.google.code.gson:gson:2.13.1'
     
     // Command line parsing
     implementation 'info.picocli:picocli:4.7.5'

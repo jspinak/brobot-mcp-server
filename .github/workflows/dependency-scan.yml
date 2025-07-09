@@ -44,7 +44,7 @@ jobs:
           cd brobot_client && pip-audit --format json --output ../pip-audit-client.json || true
       
       - name: Upload scan results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: python-dependency-scans
           path: |
@@ -74,7 +74,7 @@ jobs:
           ./gradlew dependencyCheckAnalyze || true
       
       - name: Upload OWASP reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: owasp-dependency-check
           path: brobot-cli/build/reports/dependency-check-report.*
@@ -187,7 +187,7 @@ jobs:
           "
       
       - name: Upload license reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: license-reports
           path: licenses-*.json

@@ -79,7 +79,7 @@ jobs:
       
       - name: Upload Bandit results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bandit-results
           path: bandit-*.json
@@ -116,7 +116,7 @@ jobs:
       
       - name: Upload Java analysis results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: java-analysis
           path: brobot-cli/build/reports/

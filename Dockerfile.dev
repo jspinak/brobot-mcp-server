@@ -1,6 +1,6 @@
 # Development Dockerfile with hot reload support
 
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Install Java runtime and development tools
 RUN apt-get update && \

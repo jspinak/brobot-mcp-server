@@ -131,6 +131,29 @@ The server will automatically detect and use the CLI when available.
 - `POST /api/v1/execute` - Execute an automation action
 - `GET /api/v1/health` - Extended health check with CLI status
 
+## Python Client Library
+
+A Python client library is available for easy integration:
+
+```bash
+pip install brobot-client
+```
+
+Quick example:
+```python
+from brobot_client import BrobotClient
+
+with BrobotClient() as client:
+    # Get current state
+    observation = client.get_observation()
+    
+    # Perform actions
+    client.click("button.png")
+    client.type_text("Hello, Brobot!")
+```
+
+See the [client documentation](brobot_client/README.md) for full details.
+
 ## Development
 
 ### Running Tests
@@ -161,14 +184,14 @@ mypy mcp_server
 
 ### Milestone 1: Core Server & API Contract Definition ✅
 - [x] Initial project setup with FastAPI
-- [ ] Mock API endpoints implementation
+- [x] Mock API endpoints implementation
 
-### Milestone 2: Brobot Integration
-- [ ] Create Brobot Java CLI wrapper
-- [ ] Wire API endpoints to live Brobot CLI
+### Milestone 2: Brobot Integration ✅
+- [x] Create Brobot Java CLI wrapper
+- [x] Wire API endpoints to live Brobot CLI
 
 ### Milestone 3: Developer Experience
-- [ ] Python client library
+- [x] Python client library
 - [ ] Comprehensive documentation
 
 ### Milestone 4: Quality & Automation

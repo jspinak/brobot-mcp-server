@@ -1,0 +1,129 @@
+name: Build Java CLI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'brobot-cli/**'
+      - '.github/workflows/build-cli.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'brobot-cli/**'
+      - '.github/workflows/build-cli.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        java: ['11', '17', '21']
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Java ${{ matrix.java }}
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: 'temurin'
+      
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      
+      - name: Grant execute permission for gradlew
+        if: runner.os != 'Windows'
+        run: chmod +x brobot-cli/gradlew
+      
+      - name: Build with Gradle
+        run: |
+          cd brobot-cli
+          ./gradlew clean build shadowJar
+      
+      - name: Run tests
+        run: |
+          cd brobot-cli
+          ./gradlew test
+      
+      - name: Generate test report
+        if: always()
+        run: |
+          cd brobot-cli
+          ./gradlew jacocoTestReport
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.os }}-java${{ matrix.java }}
+          path: brobot-cli/build/reports/tests/
+      
+      - name: Upload coverage reports
+        if: matrix.os == 'ubuntu-latest' && matrix.java == '17'
+        uses: codecov/codecov-action@v3
+        with:
+          file: brobot-cli/build/reports/jacoco/test/jacocoTestReport.xml
+          flags: cli
+          name: codecov-cli
+      
+      - name: Verify JAR
+        run: |
+          cd brobot-cli/build/libs
+          java -jar brobot-cli*.jar --version
+      
+      - name: Upload JAR artifact
+        if: matrix.os == 'ubuntu-latest' && matrix.java == '17'
+        uses: actions/upload-artifact@v3
+        with:
+          name: brobot-cli-jar
+          path: brobot-cli/build/libs/*.jar
+
+  integration-test:
+    name: CLI Integration Test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Download CLI JAR
+        uses: actions/download-artifact@v3
+        with:
+          name: brobot-cli-jar
+          path: brobot-cli/build/libs/
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+      
+      - name: Run integration tests
+        env:
+          BROBOT_CLI_JAR: ${{ github.workspace }}/brobot-cli/build/libs/brobot-cli.jar
+        run: |
+          # Test basic CLI commands
+          java -jar $BROBOT_CLI_JAR --version
+          java -jar $BROBOT_CLI_JAR --help
+          
+          # Run Python integration tests
+          pytest tests/integration/test_server_cli_integration.py -v -k "cli"

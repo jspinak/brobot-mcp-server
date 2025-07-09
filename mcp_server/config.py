@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        case_sensitive = False
+        extra = "ignore"
     
     @validator("brobot_cli_jar")
     def validate_jar_path(cls, v: Optional[str]) -> Optional[str]:
@@ -54,6 +56,20 @@ class Settings(BaseSettings):
             path = path.absolute()
         
         return str(path)
+    
+    @validator("port")
+    def validate_port(cls, v: int) -> int:
+        """Validate port number is in valid range."""
+        if v <= 0 or v > 65535:
+            raise ValueError(f"Port must be between 1 and 65535, got {v}")
+        return v
+    
+    @validator("cli_timeout")
+    def validate_timeout(cls, v: float) -> float:
+        """Validate timeout is positive."""
+        if v <= 0:
+            raise ValueError(f"Timeout must be positive, got {v}")
+        return v
     
     @property
     def is_cli_configured(self) -> bool:

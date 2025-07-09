@@ -41,6 +41,14 @@ dev = [
     "mypy>=1.5.0",
     "pre-commit>=3.3.3",
 ]
+test = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.11.0",
+    "httpx>=0.24.0",
+    "aioresponses>=0.7.4",
+]
 
 [project.scripts]
 brobot-mcp-server = "mcp_server.main:main"
@@ -64,3 +72,34 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests", 
+    "slow: Slow tests",
+    "cli: Tests requiring Java CLI",
+    "mock: Tests using mock data"
+]
+addopts = "--cov=mcp_server --cov-report=html --cov-report=term-missing --cov-report=xml"
+
+[tool.coverage.run]
+source = ["mcp_server"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/test_*.py",
+    "*/conftest.py"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*Protocol\\):",
+    "@abstractmethod"
+]
+precision = 2
+show_missing = true

@@ -1,0 +1,268 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 0.1.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Is this a pre-release?'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  packages: write
+  id-token: write
+
+jobs:
+  prepare-release:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_branch: ${{ steps.create_branch.outputs.branch }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog generation
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Create release branch
+        id: create_branch
+        run: |
+          BRANCH="release/v${{ github.event.inputs.version }}"
+          git checkout -b $BRANCH
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+      
+      - name: Update version in pyproject.toml
+        run: |
+          # Update server version
+          sed -i 's/version = ".*"/version = "${{ github.event.inputs.version }}"/' pyproject.toml
+          
+          # Update client version
+          sed -i 's/version = ".*"/version = "${{ github.event.inputs.version }}"/' brobot_client/pyproject.toml
+          
+          # Update version in main.py
+          sed -i 's/__version__ = ".*"/__version__ = "${{ github.event.inputs.version }}"/' mcp_server/__init__.py
+          sed -i 's/__version__ = ".*"/__version__ = "${{ github.event.inputs.version }}"/' brobot_client/brobot_client/__init__.py
+      
+      - name: Update Java CLI version
+        run: |
+          cd brobot-cli
+          sed -i "s/version = '.*'/version = '${{ github.event.inputs.version }}'/" build.gradle
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Install changelog generator
+          pip install auto-changelog
+          
+          # Generate changelog
+          auto-changelog \
+            --output CHANGELOG.md \
+            --template=./templates/changelog.md \
+            --unreleased-label="v${{ github.event.inputs.version }}" \
+            --tag-prefix="v"
+          
+          # Extract current version changelog
+          CHANGELOG=$(sed -n '/## v${{ github.event.inputs.version }}/,/## v/p' CHANGELOG.md | sed '$d')
+          
+          # Save to output
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Commit changes
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "chore: prepare release v${{ github.event.inputs.version }}"
+          git push origin ${{ steps.create_branch.outputs.branch }}
+      
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.create_branch.outputs.branch }}
+          title: "Release v${{ github.event.inputs.version }}"
+          body: |
+            ## Release v${{ github.event.inputs.version }}
+            
+            This PR prepares the release of version ${{ github.event.inputs.version }}.
+            
+            ### Changelog
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ### Checklist
+            - [ ] Version numbers updated
+            - [ ] Changelog generated
+            - [ ] Tests passing
+            - [ ] Documentation updated
+            
+            ### Release Type
+            Pre-release: ${{ github.event.inputs.prerelease }}
+          labels: release
+
+  run-tests:
+    name: Run Release Tests
+    needs: prepare-release
+    uses: ./.github/workflows/test.yml
+    with:
+      ref: ${{ needs.prepare-release.outputs.release_branch }}
+
+  create-release:
+    name: Create GitHub Release
+    needs: [prepare-release, run-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.release_branch }}
+      
+      - name: Build release artifacts
+        run: |
+          # Create source archives
+          git archive --format=tar.gz --prefix=brobot-mcp-server-${{ github.event.inputs.version }}/ \
+            -o brobot-mcp-server-${{ github.event.inputs.version }}-source.tar.gz HEAD
+          
+          # Create changelog file
+          echo "${{ needs.prepare-release.outputs.changelog }}" > RELEASE_NOTES.md
+      
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          release_name: v${{ github.event.inputs.version }}
+          body_path: RELEASE_NOTES.md
+          draft: true
+          prerelease: ${{ github.event.inputs.prerelease }}
+      
+      - name: Upload source archive
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: brobot-mcp-server-${{ github.event.inputs.version }}-source.tar.gz
+          asset_name: brobot-mcp-server-${{ github.event.inputs.version }}-source.tar.gz
+          asset_content_type: application/gzip
+
+  trigger-publish:
+    name: Trigger Publish Workflow
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger publish workflow
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: release-published
+          client-payload: |
+            {
+              "version": "${{ github.event.inputs.version }}",
+              "prerelease": ${{ github.event.inputs.prerelease }}
+            }
+
+  update-documentation:
+    name: Update Documentation
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      
+      - name: Update README badges
+        run: |
+          # Update version badge
+          sed -i 's/version-[0-9.]*-/version-${{ github.event.inputs.version }}-/' README.md
+          
+          # Update PyPI badge (will reflect after publish)
+          sed -i 's/pypi\/v\/brobot-mcp-server/pypi\/v\/brobot-mcp-server/' README.md
+      
+      - name: Update documentation version
+        run: |
+          # Update version in docs
+          find docs -name "*.md" -type f -exec sed -i 's/version [0-9.]*/version ${{ github.event.inputs.version }}/' {} \;
+      
+      - name: Commit documentation updates
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git diff --quiet && git diff --staged --quiet || git commit -m "docs: update version to ${{ github.event.inputs.version }}"
+          git push
+
+  post-release:
+    name: Post-Release Tasks
+    needs: [create-release, trigger-publish]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create milestone for next version
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const version = '${{ github.event.inputs.version }}';
+            const parts = version.split('.');
+            parts[2] = String(Number(parts[2]) + 1);
+            const nextVersion = parts.join('.');
+            
+            await github.rest.issues.createMilestone({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `v${nextVersion}`,
+              description: `Next patch release after v${version}`
+            });
+      
+      - name: Close current milestone
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const milestones = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            
+            const current = milestones.data.find(m => m.title === 'v${{ github.event.inputs.version }}');
+            if (current) {
+              await github.rest.issues.updateMilestone({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                milestone_number: current.number,
+                state: 'closed'
+              });
+            }
+      
+      - name: Announce release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            // Create announcement issue
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🎉 Released v${{ github.event.inputs.version }}`,
+              body: `Version ${{ github.event.inputs.version }} has been released!\n\n` +
+                    `### What's New\n${{ needs.prepare-release.outputs.changelog }}\n\n` +
+                    `### Installation\n` +
+                    `\`\`\`bash\npip install brobot-mcp-server==${{ github.event.inputs.version }}\n\`\`\`\n\n` +
+                    `[View Release](https://github.com/${{ github.repository }}/releases/tag/v${{ github.event.inputs.version }})`,
+              labels: ['announcement']
+            });

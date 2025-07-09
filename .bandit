@@ -1,0 +1,12 @@
+[bandit]
+# Exclude test directories
+exclude_dirs = ['tests', 'brobot_client/tests', '.tox', 'venv', '.venv']
+
+# Skip these tests
+skips = ['B101', 'B601']  # B101: assert_used, B601: paramiko_calls
+
+# Only report issues of this severity or higher
+severity = 'medium'
+
+# Report confidence level
+confidence = 'medium'

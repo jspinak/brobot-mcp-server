@@ -1,0 +1,189 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+
+jobs:
+  pre-commit:
+    name: Pre-commit Hooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.0
+
+  python-quality:
+    name: Python Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-quality-${{ hashFiles('**/pyproject.toml') }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install black flake8 mypy pylint bandit isort
+          pip install -e ".[dev]"
+          cd brobot_client && pip install -e ".[dev]"
+      
+      - name: Run Black
+        run: |
+          black --check mcp_server tests
+          cd brobot_client && black --check brobot_client tests
+      
+      - name: Run isort
+        run: |
+          isort --check-only mcp_server tests
+          cd brobot_client && isort --check-only brobot_client tests
+      
+      - name: Run Flake8
+        run: |
+          flake8 mcp_server tests
+          cd brobot_client && flake8 brobot_client tests
+      
+      - name: Run Pylint
+        run: |
+          pylint mcp_server || true
+          cd brobot_client && pylint brobot_client || true
+      
+      - name: Run MyPy
+        run: |
+          mypy mcp_server
+          cd brobot_client && mypy brobot_client
+      
+      - name: Run Bandit Security Scan
+        run: |
+          bandit -r mcp_server -f json -o bandit-server.json || true
+          cd brobot_client && bandit -r brobot_client -f json -o ../bandit-client.json || true
+      
+      - name: Upload Bandit results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit-results
+          path: bandit-*.json
+
+  java-quality:
+    name: Java Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+      
+      - name: Run Checkstyle
+        run: |
+          cd brobot-cli
+          ./gradlew checkstyleMain checkstyleTest || true
+      
+      - name: Run SpotBugs
+        run: |
+          cd brobot-cli
+          ./gradlew spotbugsMain spotbugsTest || true
+      
+      - name: Upload Java analysis results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: java-analysis
+          path: brobot-cli/build/reports/
+
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+      
+      - name: Run tests with coverage
+        run: |
+          pytest --cov=mcp_server --cov-report=xml --cov-report=term
+      
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ github.repository_owner }}
+            -Dsonar.projectKey=${{ github.repository_owner }}_brobot-mcp-server
+            -Dsonar.sources=mcp_server,brobot_client/brobot_client,brobot-cli/src
+            -Dsonar.tests=tests,brobot_client/tests
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.java.binaries=brobot-cli/build/classes
+
+  markdown-lint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run markdownlint
+        uses: articulate/actions-markdownlint@v1
+        with:
+          config: .markdownlint.json
+          files: '**/*.md'
+          ignore: node_modules
+
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          config_file: .yamllint.yml

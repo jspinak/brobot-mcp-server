@@ -1,0 +1,69 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info
+dist
+build
+.tox
+.coverage
+.coverage.*
+htmlcov
+.pytest_cache
+.mypy_cache
+.hypothesis
+
+# Virtual environments
+venv
+.venv
+env
+.env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Java/Gradle
+brobot-cli/.gradle
+brobot-cli/build
+!brobot-cli/build/libs/*.jar
+brobot-cli/.idea
+brobot-cli/*.iml
+brobot-cli/*.ipr
+brobot-cli/*.iws
+
+# Documentation
+docs/_build
+*.log
+
+# Test files
+tests
+brobot_client/tests
+coverage
+test-results
+
+# CI/CD
+.github
+.pre-commit-config.yaml
+tox.ini
+.bandit
+sonar-project.properties
+
+# Misc
+*.bak
+*.tmp
+*.temp
+node_modules
+npm-debug.log

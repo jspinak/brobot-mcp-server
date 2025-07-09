@@ -10,7 +10,7 @@ from .exceptions import (
     BrobotClientError,
     BrobotConnectionError,
     BrobotTimeoutError,
-    BrobotActionError
+    BrobotValidationError
 )
 from .models import (
     StateStructure,
@@ -31,7 +31,7 @@ __all__ = [
     "BrobotClientError",
     "BrobotConnectionError", 
     "BrobotTimeoutError",
-    "BrobotActionError",
+    "BrobotValidationError",
     "StateStructure",
     "State",
     "StateTransition",

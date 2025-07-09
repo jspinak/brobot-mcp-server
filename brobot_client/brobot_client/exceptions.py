@@ -23,3 +23,8 @@ class BrobotActionError(BrobotClientError):
         super().__init__(message)
         self.action_type = action_type
         self.error_details = error_details or {}
+
+
+class BrobotValidationError(BrobotClientError):
+    """Raised when request validation fails."""
+    pass

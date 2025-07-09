@@ -8,8 +8,6 @@ updates:
       day: "monday"
       time: "06:00"
     open-pull-requests-limit: 10
-    reviewers:
-      - "jspinak"
     labels:
       - "dependencies"
       - "python"
@@ -31,8 +29,6 @@ updates:
       day: "monday"
       time: "06:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "jspinak"
     labels:
       - "dependencies"
       - "python"
@@ -49,8 +45,6 @@ updates:
       day: "monday"
       time: "06:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "jspinak"
     labels:
       - "dependencies"
       - "java"
@@ -66,8 +60,6 @@ updates:
       day: "monday"
       time: "06:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "jspinak"
     labels:
       - "dependencies"
       - "github-actions"
@@ -83,8 +75,6 @@ updates:
       day: "monday"
       time: "06:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "jspinak"
     labels:
       - "dependencies"
       - "docker"

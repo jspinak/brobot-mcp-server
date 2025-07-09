@@ -1,0 +1,75 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+}
+
+group = 'io.github.jspinak.brobot'
+version = '0.1.0'
+
+repositories {
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    // Brobot core dependency - adjust version as needed
+    implementation 'com.github.jspinak:brobot:1.0.0'
+    
+    // JSON processing
+    implementation 'com.google.code.gson:gson:2.10.1'
+    
+    // Command line parsing
+    implementation 'info.picocli:picocli:4.7.5'
+    
+    // Logging
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    implementation 'ch.qos.logback:logback-classic:1.4.14'
+    
+    // Testing
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+}
+
+application {
+    mainClass = 'io.github.jspinak.brobot.cli.BrobotCLI'
+}
+
+jar {
+    manifest {
+        attributes(
+            'Main-Class': 'io.github.jspinak.brobot.cli.BrobotCLI'
+        )
+    }
+}
+
+shadowJar {
+    archiveBaseName = 'brobot-cli'
+    archiveClassifier = ''
+    archiveVersion = ''
+    mergeServiceFiles()
+    
+    manifest {
+        attributes(
+            'Main-Class': 'io.github.jspinak.brobot.cli.BrobotCLI'
+        )
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// Task to build the CLI JAR
+task buildCli {
+    dependsOn shadowJar
+    doLast {
+        println "CLI JAR built: ${shadowJar.archiveFile.get().asFile.absolutePath}"
+    }
+}

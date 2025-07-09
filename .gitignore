@@ -152,3 +152,12 @@ brobot-cli.jar
 *.jar
 temp/
 logs/
+
+# Java/Gradle
+.gradle/
+brobot-cli/build/
+brobot-cli/.gradle/
+*.class
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache

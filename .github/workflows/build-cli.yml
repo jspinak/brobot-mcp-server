@@ -63,7 +63,7 @@ jobs:
       
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.os }}-java${{ matrix.java }}
           path: brobot-cli/build/reports/tests/
@@ -83,7 +83,7 @@ jobs:
       
       - name: Upload JAR artifact
         if: matrix.os == 'ubuntu-latest' && matrix.java == '17'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: brobot-cli-jar
           path: brobot-cli/build/libs/*.jar

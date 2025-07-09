@@ -45,13 +45,13 @@ jobs:
           cd brobot_client && twine check dist/*
       
       - name: Upload server artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: python-server-dist
           path: dist/
       
       - name: Upload client artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: python-client-dist
           path: brobot_client/dist/
@@ -84,7 +84,7 @@ jobs:
           ./gradlew clean shadowJar
       
       - name: Upload JAR artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: brobot-cli-jar
           path: brobot-cli/build/libs/*.jar

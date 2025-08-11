@@ -1,7 +1,7 @@
 # Multi-stage build for Brobot MCP Server
 
 # Stage 1: Build Java CLI
-FROM gradle:8-jdk17 AS java-builder
+FROM gradle:9-jdk17 AS java-builder
 
 WORKDIR /build
 

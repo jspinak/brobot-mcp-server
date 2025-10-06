@@ -14,7 +14,7 @@ repositories {
 
 dependencies {
     // Brobot core dependency - adjust version as needed
-    implementation 'com.github.jspinak:brobot:1.0.0'
+    implementation 'com.github.jspinak:brobot:v1.1.0'
     
     // JSON processing
     implementation 'com.google.code.gson:gson:2.13.1'

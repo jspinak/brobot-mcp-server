@@ -20,7 +20,7 @@ COPY brobot-cli/src ./src
 RUN gradle shadowJar --no-daemon
 
 # Stage 2: Python runtime
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 # Install Java runtime
 RUN apt-get update && \
